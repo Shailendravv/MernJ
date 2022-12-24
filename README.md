@@ -1933,3 +1933,83 @@ const BigSidebar = () => {
 
 export default BigSidebar;
 ```
+
+#### REACT ROUTER UPDATE !!!
+
+- [Stack Overflow](https://stackoverflow.com/questions/70644361/react-router-dom-v6-shows-active-for-index-as-well-as-other-subroutes)
+
+```js
+<NavLink
+to={path}
+key={id}
+onClick={toggleSidebar}
+className={({ isActive }) =>
+isActive ? 'nav-link active' : 'nav-link'}
+
+
+end
+>
+```
+
+#### Authenticate User Setup
+
+- create auth.js in <b>middleware</b>
+
+```js
+const auth = async (req, res, next) => {
+  console.log("authenticate user");
+  next();
+};
+
+export default auth;
+```
+
+```js
+authRoutes.js;
+
+import authenticateUser from "../middleware/auth.js";
+
+router.route("/updateUser").patch(authenticateUser, updateUser);
+```
+
+- two options
+
+```js
+server.js;
+
+import authenticateUser from "./middleware/auth.js";
+app.use("/api/v1/jobs", authenticateUser, jobsRouter);
+```
+
+```js
+jobsRoutes.js;
+
+import authenticateUser from "./middleware/auth.js";
+
+// all routes !!!!
+
+router.route("/stats").get(authenticateUser, showStats);
+```
+
+#### Auth - Bearer Schema
+
+```js
+Postman
+
+Headers
+
+Authorization: Bearer <token>
+
+```
+
+```js
+auth.js;
+
+const auth = async (req, res, next) => {
+  const headers = req.headers;
+  const authHeader = req.headers.authorization;
+  console.log(headers);
+  console.log(authHeader);
+  next();
+};
+```
