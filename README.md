@@ -3167,3 +3167,294 @@ return (
   </div>
 );
 ```
+
+#### SetEditJob
+
+```js
+actions.js;
+export const SET_EDIT_JOB = "SET_EDIT_JOB";
+```
+
+```js
+appContext.js
+
+const setEditJob = (id) => {
+  dispatch({ type: SET_EDIT_JOB, payload: { id } })
+}
+const editJob = () => {
+  console.log('edit job')
+}
+value={{editJob}}
+```
+
+```js
+reducer.js;
+
+if (action.type === SET_EDIT_JOB) {
+  const job = state.jobs.find((job) => job._id === action.payload.id);
+  const { _id, position, company, jobLocation, jobType, status } = job;
+  return {
+    ...state,
+    isEditing: true,
+    editJobId: _id,
+    position,
+    company,
+    jobLocation,
+    jobType,
+    status,
+  };
+}
+```
+
+```js
+AddJob.js;
+const { isEditing, editJob } = useAppContext();
+const handleSubmit = (e) => {
+  e.preventDefault();
+
+  if (!position || !company || !jobLocation) {
+    displayAlert();
+    return;
+  }
+  if (isEditing) {
+    editJob();
+    return;
+  }
+  createJob();
+};
+```
+
+#### Edit Job - Server
+
+```js
+jobsController.js;
+
+const updateJob = async (req, res) => {
+  const { id: jobId } = req.params;
+
+  const { company, position } = req.body;
+
+  if (!company || !position) {
+    throw new BadRequestError("Please Provide All Values");
+  }
+
+  const job = await Job.findOne({ _id: jobId });
+
+  if (!job) {
+    throw new NotFoundError(`No job with id ${jobId}`);
+  }
+
+  // check permissions
+
+  const updatedJob = await Job.findOneAndUpdate({ _id: jobId }, req.body, {
+    new: true,
+    runValidators: true,
+  });
+
+  res.status(StatusCodes.OK).json({ updatedJob });
+};
+```
+
+#### Alternative Approach
+
+- optional
+- multiple approaches
+- different setups
+- course Q&A
+
+```js
+jobsController.js;
+const updateJob = async (req, res) => {
+  const { id: jobId } = req.params;
+  const { company, position, jobLocation } = req.body;
+
+  if (!position || !company) {
+    throw new BadRequestError("Please provide all values");
+  }
+  const job = await Job.findOne({ _id: jobId });
+
+  if (!job) {
+    throw new NotFoundError(`No job with id :${jobId}`);
+  }
+
+  // check permissions
+
+  // alternative approach
+
+  job.position = position;
+  job.company = company;
+  job.jobLocation = jobLocation;
+
+  await job.save();
+  res.status(StatusCodes.OK).json({ job });
+};
+```
+
+#### Check Permissions
+
+```js
+jobsController.js;
+
+const updateJob = async (req, res) => {
+  const { id: jobId } = req.params;
+  const { company, position, status } = req.body;
+
+  if (!position || !company) {
+    throw new BadRequestError("Please provide all values");
+  }
+  const job = await Job.findOne({ _id: jobId });
+
+  if (!job) {
+    throw new NotFoundError(`No job with id :${jobId}`);
+  }
+
+  // check permissions
+  // req.user.userId (string) === job.createdBy(object)
+  // throw new UnAuthenticatedError('Not authorized to access this route')
+
+  // console.log(typeof req.user.userId)
+  // console.log(typeof job.createdBy)
+
+  checkPermissions(req.user, job.createdBy);
+
+  const updatedJob = await Job.findOneAndUpdate({ _id: jobId }, req.body, {
+    new: true,
+    runValidators: true,
+  });
+
+  res.status(StatusCodes.OK).json({ updatedJob });
+};
+```
+
+- utils folder
+- checkPermissions.js
+- import in jobsController.js
+
+```js
+checkPermissions.js;
+
+import { UnAuthenticatedError } from "../errors/index.js";
+
+const checkPermissions = (requestUser, resourceUserId) => {
+  // if (requestUser.role === 'admin') return
+  if (requestUser.userId === resourceUserId.toString()) return;
+  throw new UnauthorizedError("Not authorized to access this route");
+};
+
+export default checkPermissions;
+```
+
+#### Remove/Delete Job
+
+```js
+jobsController.js;
+
+const deleteJob = async (req, res) => {
+  const { id: jobId } = req.params;
+
+  const job = await Job.findOne({ _id: jobId });
+
+  if (!job) {
+    throw new NotFoundError(`No job with id : ${jobId}`);
+  }
+
+  checkPermissions(req.user, job.createdBy);
+
+  await job.remove();
+  res.status(StatusCodes.OK).json({ msg: "Success! Job removed" });
+};
+```
+
+#### Delete Job - Front-End
+
+```js
+actions.js;
+
+export const DELETE_JOB_BEGIN = "DELETE_JOB_BEGIN";
+```
+
+```js
+appContext.js;
+
+const deleteJob = async (jobId) => {
+  dispatch({ type: DELETE_JOB_BEGIN });
+  try {
+    await authFetch.delete(`/jobs/${jobId}`);
+    getJobs();
+  } catch (error) {
+    logoutUser();
+  }
+};
+```
+
+```js
+reducer.js;
+
+if (action.type === DELETE_JOB_BEGIN) {
+  return { ...state, isLoading: true };
+}
+```
+
+#### Edit Job - Front-End
+
+```js
+actions.js;
+export const EDIT_JOB_BEGIN = "EDIT_JOB_BEGIN";
+export const EDIT_JOB_SUCCESS = "EDIT_JOB_SUCCESS";
+export const EDIT_JOB_ERROR = "EDIT_JOB_ERROR";
+```
+
+```js
+appContext.js;
+const editJob = async () => {
+  dispatch({ type: EDIT_JOB_BEGIN });
+  try {
+    const { position, company, jobLocation, jobType, status } = state;
+
+    await authFetch.patch(`/jobs/${state.editJobId}`, {
+      company,
+      position,
+      jobLocation,
+      jobType,
+      status,
+    });
+    dispatch({
+      type: EDIT_JOB_SUCCESS,
+    });
+    dispatch({ type: CLEAR_VALUES });
+  } catch (error) {
+    if (error.response.status === 401) return;
+    dispatch({
+      type: EDIT_JOB_ERROR,
+      payload: { msg: error.response.data.msg },
+    });
+  }
+  clearAlert();
+};
+```
+
+```js
+reducer.js;
+
+if (action.type === EDIT_JOB_BEGIN) {
+  return { ...state, isLoading: true };
+}
+if (action.type === EDIT_JOB_SUCCESS) {
+  return {
+    ...state,
+    isLoading: false,
+    showAlert: true,
+    alertType: "success",
+    alertText: "Job Updated!",
+  };
+}
+if (action.type === EDIT_JOB_ERROR) {
+  return {
+    ...state,
+    isLoading: false,
+    showAlert: true,
+    alertType: "danger",
+    alertText: action.payload.msg,
+  };
+}
+```
