@@ -3498,3 +3498,165 @@ const start = async () => {
 
 start();
 ```
+
+#### Show Stats - Structure
+
+- aggregation pipeline
+- step by step
+- [Aggregation Pipeline](https://docs.mongodb.com/manual/core/aggregation-pipeline/)
+
+```js
+jobsController.js;
+
+import mongoose from "mongoose";
+
+const showStats = async (req, res) => {
+  let stats = await Job.aggregate([
+    { $match: { createdBy: mongoose.Types.ObjectId(req.user.userId) } },
+    { $group: { _id: "$status", count: { $sum: 1 } } },
+  ]);
+
+  res.status(StatusCodes.OK).json({ stats });
+};
+```
+
+#### Show Stats - Object Setup
+
+- [Reduce Basics](https://youtu.be/3WkW9nrS2mw)
+- [Reduce Object Example ](https://youtu.be/5BFkp8JjLEY)
+
+```js
+jobsController.js;
+
+const showStats = async (req, res) => {
+  let stats = await Job.aggregate([
+    { $match: { createdBy: mongoose.Types.ObjectId(req.user.userId) } },
+    { $group: { _id: "$status", count: { $sum: 1 } } },
+  ]);
+
+  stats = stats.reduce((acc, curr) => {
+    const { _id: title, count } = curr;
+    acc[title] = count;
+    return acc;
+  }, {});
+
+  res.status(StatusCodes.OK).json({ stats });
+};
+```
+
+#### Show Stats - Default Stats
+
+```js
+jobsController.js;
+
+const showStats = async (req, res) => {
+  let stats = await Job.aggregate([
+    { $match: { createdBy: mongoose.Types.ObjectId(req.user.userId) } },
+    { $group: { _id: "$status", count: { $sum: 1 } } },
+  ]);
+  stats = stats.reduce((acc, curr) => {
+    const { _id: title, count } = curr;
+    acc[title] = count;
+    return acc;
+  }, {});
+
+  const defaultStats = {
+    pending: stats.pending || 0,
+    interview: stats.interview || 0,
+    declined: stats.declined || 0,
+  };
+  let monthlyApplications = [];
+  res.status(StatusCodes.OK).json({ defaultStats, monthlyApplications });
+};
+```
+
+#### Show Stats - Function Setup
+
+```js
+actions.js;
+
+export const SHOW_STATS_BEGIN = "SHOW_STATS_BEGIN";
+export const SHOW_STATS_SUCCESS = "SHOW_STATS_SUCCESS";
+```
+
+```js
+appContext.js
+
+const initialState = {
+  stats: {},
+  monthlyApplications: []
+
+}
+
+const showStats = async () => {
+    dispatch({ type: SHOW_STATS_BEGIN })
+    try {
+      const { data } = await authFetch('/jobs/stats')
+      dispatch({
+        type: SHOW_STATS_SUCCESS,
+        payload: {
+          stats: data.defaultStats,
+          monthlyApplications: data.monthlyApplications,
+        },
+      })
+    } catch (error) {
+console.log(error.response)
+      // logoutUser()
+    }
+
+clearAlert()
+  }
+  value={{showStats}}
+```
+
+```js
+reducers.js;
+if (action.type === SHOW_STATS_BEGIN) {
+  return { ...state, isLoading: true, showAlert: false };
+}
+if (action.type === SHOW_STATS_SUCCESS) {
+  return {
+    ...state,
+    isLoading: false,
+    stats: action.payload.stats,
+    monthlyApplications: action.payload.monthlyApplications,
+  };
+}
+```
+
+#### Stats Page - Structure
+
+- components
+- StatsContainer.js
+- ChartsContainer.js
+- StatsItem.js
+- simple return
+- import/export index.js
+
+```js
+Stats.js;
+
+import { useEffect } from "react";
+import { useAppContext } from "../../context/appContext";
+import { StatsContainer, Loading, ChartsContainer } from "../../components";
+
+const Stats = () => {
+  const { showStats, isLoading, monthlyApplications } = useAppContext();
+  useEffect(() => {
+    showStats();
+  }, []);
+
+  if (isLoading) {
+    return <Loading center />;
+  }
+
+  return (
+    <>
+      <StatsContainer />
+      {monthlyApplications.length > 0 && <ChartsContainer />}
+    </>
+  );
+};
+
+export default Stats;
+```
