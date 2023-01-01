@@ -10,9 +10,10 @@ const apiLimiter = rateLimiter({
 
 import { register, login, updateUser } from "../controllers/authControllers.js";
 import authenticateUser from "../middleware/auth.js";
+import testUser from "../middleware/testUser.js";
 
 router.route("/register").post(apiLimiter, register);
 router.route("/login").post(apiLimiter, login);
-router.route("/updateUser").patch(authenticateUser, updateUser);
+router.route("/updateUser").patch(authenticateUser, testUser, updateUser);
 
 export default router;

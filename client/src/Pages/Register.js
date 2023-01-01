@@ -39,7 +39,6 @@ const Register = () => {
     } else {
       registerUser(currentUser);
     }
-    console.log("values", values);
   };
 
   useEffect(() => {
@@ -83,6 +82,21 @@ const Register = () => {
 
         <button type="submit" className="btn btn-block" disabled={isLoading}>
           Submit
+        </button>
+        <button
+          type="button"
+          className="btn btn-block btn-hipster"
+          disabled={isLoading}
+          onClick={() => {
+            loginUser({
+              name: "",
+              email: "test@test.com",
+              password: "Shailendra20",
+              alertText: "Login Successful! Redirecting...",
+            });
+          }}
+        >
+          {isLoading ? "loading..." : "demo app"}
         </button>
         <p>
           {values.isMember ? "Not a member yet?" : "Already a member"}
